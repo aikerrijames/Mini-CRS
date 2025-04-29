@@ -319,7 +319,7 @@
     <script>
         // Get references to DOM elements
         const seoContentInput = document.getElementById('seo-content');
-        const seoKeywordsInput = document.getElementById('seo-keywords'); // NEW: Keywords input
+        const seoKeywordsInput = document.getElementById('seo-keywords');
         const toneSelect = document.getElementById('tone-select');
         const generateButton = document.getElementById('generate-button');
         const outputColumn = document.getElementById('output-column');
@@ -348,8 +348,26 @@
             }
         };
 
-        // Webhook configuration - UPDATED to production URL
+        // Webhook configuration
         const webhookUrl = 'https://aikerrijames.app.n8n.cloud/webhook/8b9204f0-a869-4abe-9681-3a68a0cc9b4d';
+
+        /**
+         * Removes common markdown formatting symbols from text.
+         * Currently removes **bold** markers.
+         * @param {string} text - The text to clean.
+         * @returns {string} - The cleaned text.
+         */
+        function removeMarkdownSymbols(text) {
+            if (!text) return "";
+            // Remove double asterisks (bold)
+            let cleanedText = text.replace(/\*\*/g, '');
+            // Add more replacements here if needed (e.g., single asterisks for italics)
+            // cleanedText = cleanedText.replace(/\*/g, '');
+            // Remove leading/trailing quotes just in case
+             cleanedText = cleanedText.replace(/^["']|["']$/g, '');
+            return cleanedText.trim(); // Trim whitespace as well
+        }
+
 
         /**
          * Attempts to parse plain text response into separate posts.
@@ -397,8 +415,7 @@
                 const contentEndIndex = nextMatch ? nextMatch.startIndex : text.length;
 
                 let content = text.substring(contentStartIndex, contentEndIndex).trim();
-                // Optional: Remove surrounding quotes if present
-                content = content.replace(/^["']|["']$/g, '');
+                // Don't remove quotes here, do it after all parsing
                 posts[currentMatch.key] = content;
             }
 
@@ -468,20 +485,21 @@
 
                 } catch (jsonError) {
                     console.warn("Response was not valid JSON. Attempting to parse plain text.", jsonError);
-                    posts = parsePlainTextResponse(responseText); // Use updated parsing function
+                    posts = parsePlainTextResponse(responseText);
                     if (!Object.values(posts).some(p => p !== '')) {
                         // If plain text parsing still finds nothing, put raw text in first box
                         posts.linkedin = responseText; // Fallback
                         errorArea.textContent = "Received non-JSON response that could not be automatically split. Displaying raw text in LinkedIn field.";
                     }
-                    // No specific error message if splitting *was* successful
                 }
 
+                // **NEW**: Clean markdown from each post *before* displaying
                 for (const key in posts) {
                     if (outputElements[key]) {
-                        outputElements[key].textarea.value = posts[key];
-                        outputElements[key].copyButton.disabled = !posts[key];
-                        if (posts[key]) hasContent = true;
+                        const cleanedPost = removeMarkdownSymbols(posts[key]); // Clean the text
+                        outputElements[key].textarea.value = cleanedPost; // Display cleaned text
+                        outputElements[key].copyButton.disabled = !cleanedPost; // Enable copy if cleaned text exists
+                        if (cleanedPost) hasContent = true;
                     }
                 }
 
@@ -514,7 +532,6 @@
             const textArea = document.createElement("textarea");
             textArea.value = textToCopy;
 
-            // Make the textarea visually hidden but still part of the DOM
             textArea.style.position = 'fixed';
             textArea.style.top = '-9999px';
             textArea.style.left = '-9999px';
@@ -562,7 +579,6 @@
             const textarea = document.getElementById(targetId);
             const textToCopy = textarea.value;
 
-            // Reset feedback style
             feedbackElement.classList.remove('error');
             feedbackElement.textContent = '';
 
@@ -574,7 +590,6 @@
 
             let copySuccess = false;
 
-            // Try modern Clipboard API first
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 try {
                     await navigator.clipboard.writeText(textToCopy);
@@ -583,26 +598,22 @@
                     console.log("Copy successful using Clipboard API.");
                 } catch (err) {
                     console.warn('Clipboard API failed:', err);
-                    // If it specifically fails due to permissions or context, try fallback
                     if (err.name === 'NotAllowedError' || err.name === 'SecurityError') {
                         copySuccess = copyUsingExecCommand(textToCopy, feedbackElement);
                     } else {
-                        // For other errors, show generic failure
                         feedbackElement.textContent = 'Copy failed!';
                         feedbackElement.classList.add('error');
                     }
                 }
             } else {
-                // If modern API is not available at all, try fallback directly
                 console.warn('Clipboard API not available, trying fallback.');
                 copySuccess = copyUsingExecCommand(textToCopy, feedbackElement);
             }
 
-            // Clear feedback message after a delay
             setTimeout(() => {
                 feedbackElement.textContent = '';
                 feedbackElement.classList.remove('error');
-             }, copySuccess ? 2000 : 3000); // Longer timeout for errors
+             }, copySuccess ? 2000 : 3000);
         }
 
 
