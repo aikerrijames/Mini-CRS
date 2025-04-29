@@ -358,42 +358,48 @@
          */
         function parsePlainTextResponse(text) {
             const posts = { linkedin: '', instagram: '', facebook: '' };
+            // UPDATED Regex: More flexible for numbering, markdown (*), punctuation (:,-,–,—)
             const patterns = {
-                linkedin: /^\s*(?:[1-9]\.?\)?\s*)?LinkedIn\s*(?:Post)?[:\-–—]?\s*/im,
-                instagram: /^\s*(?:[1-9]\.?\)?\s*)?Instagram\s*(?:Post)?[:\-–—]?\s*/im,
-                facebook: /^\s*(?:[1-9]\.?\)?\s*)?Facebook\s*(?:Post)?[:\-–—]?\s*/im
+                linkedin: /^\s*(?:[1-9]+\.?\)?\s*)?(?:\*\*?)?LinkedIn(?:\*\*?)?\s*(?:Post)?\s*[:\-–—]?\s*/im,
+                instagram: /^\s*(?:[1-9]\.?\)?\s*)?(?:\*\*?)?Instagram(?:\*\*?)?\s*(?:Post)?\s*[:\-–—]?\s*/im,
+                facebook: /^\s*(?:[1-9]\.?\)?\s*)?(?:\*\*?)?Facebook(?:\*\*?)?\s*(?:Post)?\s*[:\-–—]?\s*/im
             };
-            const indices = {};
-            let foundMarkers = 0;
+
+            // Store matches with their start and end indices
+            const matches = [];
             for (const key in patterns) {
                 const match = text.match(patterns[key]);
                 if (match) {
-                    indices[key] = { index: match.index, length: match[0].length }; // Store index and length
-                    foundMarkers++;
-                } else {
-                    indices[key] = null; // Marker not found
+                    matches.push({
+                        key: key,
+                        startIndex: match.index,
+                        markerLength: match[0].length
+                    });
                 }
             }
 
-            if (foundMarkers === 0) {
-                console.warn("Could not find standard markers (LinkedIn Post:, Instagram Post:, etc.) in plain text response.");
-                return posts;
+            // If no markers found, return empty
+            if (matches.length === 0) {
+                 console.warn("Could not find standard markers (LinkedIn Post:, Instagram Post:, etc.) in plain text response.");
+                 return posts;
             }
 
-            const sortedKeys = Object.keys(indices)
-                                     .filter(key => indices[key] !== null)
-                                     .sort((a, b) => indices[a].index - indices[b].index);
+            // Sort matches by their starting index
+            matches.sort((a, b) => a.startIndex - b.startIndex);
 
-            for (let i = 0; i < sortedKeys.length; i++) {
-                const currentKey = sortedKeys[i];
-                const startIndex = indices[currentKey].index + indices[currentKey].length;
-                const nextKey = sortedKeys[i + 1];
-                const nextMatch = nextKey ? text.substring(startIndex).match(patterns[nextKey]) : null;
-                const endIndex = nextMatch ? startIndex + nextMatch.index : text.length;
+            // Extract content based on sorted matches
+            for (let i = 0; i < matches.length; i++) {
+                const currentMatch = matches[i];
+                const contentStartIndex = currentMatch.startIndex + currentMatch.markerLength;
 
-                let content = text.substring(startIndex, endIndex).trim();
-                content = content.replace(/^["']|["']$/g, ''); // Remove surrounding quotes
-                posts[currentKey] = content;
+                // Determine the end index: start of the next marker or end of the string
+                const nextMatch = matches[i + 1];
+                const contentEndIndex = nextMatch ? nextMatch.startIndex : text.length;
+
+                let content = text.substring(contentStartIndex, contentEndIndex).trim();
+                // Optional: Remove surrounding quotes if present
+                content = content.replace(/^["']|["']$/g, '');
+                posts[currentMatch.key] = content;
             }
 
             return posts;
@@ -405,7 +411,6 @@
          */
         async function handleGenerateClick() {
             const seoContent = seoContentInput.value.trim();
-            // NEW: Get keywords, default to 'N/A' if empty
             let seoKeywords = seoKeywordsInput.value.trim();
             if (!seoKeywords) {
                 seoKeywords = 'N/A';
@@ -430,7 +435,6 @@
             let response;
 
             try {
-                // UPDATED: Include seo_keywords in the payload
                 const payload = {
                     seo_content: seoContent,
                     seo_keywords: seoKeywords,
@@ -464,12 +468,13 @@
 
                 } catch (jsonError) {
                     console.warn("Response was not valid JSON. Attempting to parse plain text.", jsonError);
-                    posts = parsePlainTextResponse(responseText);
+                    posts = parsePlainTextResponse(responseText); // Use updated parsing function
                     if (!Object.values(posts).some(p => p !== '')) {
-                        // If plain text parsing also fails, put raw text in first box
+                        // If plain text parsing still finds nothing, put raw text in first box
                         posts.linkedin = responseText; // Fallback
                         errorArea.textContent = "Received non-JSON response that could not be automatically split. Displaying raw text in LinkedIn field.";
                     }
+                    // No specific error message if splitting *was* successful
                 }
 
                 for (const key in posts) {
