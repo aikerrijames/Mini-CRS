@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Social Post Generator</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/geist-font/1.0.0/fonts/geist-sans/style.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Google+Sans+Text:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* Define brand colors as CSS variables (matching AI Coach widget) */
+        :root {
+            --brand-primary: #4F46E5;
+            --brand-secondary: #A5B4FC;
+            --brand-border: #D1D5DB;
+            --brand-user-msg-bg: #E5E7EB;
+            --brand-text-light: #FFFFFF;
+            --brand-text-dark: #1F2937;
+            --brand-placeholder-text: #9CA3AF;
+            --brand-button-black: #1F2937;
+            --brand-background: #F9FAFB; /* Light grey background for the page */
+        }
+
+        /* Basic body reset and font setup */
+        body {
+            font-family: 'Geist Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--brand-background);
+            color: var(--brand-text-dark);
+            line-height: 1.6;
+        }
+
+        /* Main container for the interface */
+        .generator-container {
+            display: flex;
+            flex-wrap: wrap; /* Allow wrapping on smaller screens */
+            gap: 30px; /* Space between columns */
+            max-width: 1200px; /* Limit overall width */
+            margin: 20px auto; /* Center the container */
+            background-color: var(--brand-text-light); /* White background for the card */
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--brand-border);
+        }
+
+        /* Input and Output columns */
+        .input-column, .output-column {
+            flex: 1; /* Each column takes equal space */
+            min-width: 300px; /* Minimum width before wrapping */
+            display: flex;
+            flex-direction: column;
+            gap: 20px; /* Space between elements within a column */
+        }
+
+        /* Styling for form elements */
+        label {
+            font-weight: 500;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        textarea, select, input[type="text"] {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--brand-border);
+            border-radius: 8px;
+            font-size: 14px;
+            color: var(--brand-text-dark);
+            box-sizing: border-box; /* Include padding in width */
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            font-family: inherit; /* Inherit body font by default */
+        }
+
+        textarea#seo-content { /* Specific styling for input textarea */
+            min-height: 150px; /* Adjusted height */
+            resize: vertical;
+        }
+         textarea#seo-content::placeholder,
+         input#seo-keywords::placeholder { /* Added placeholder style for keywords */
+            color: var(--brand-placeholder-text);
+        }
+
+        /* Style for the note below keywords input */
+        .input-note {
+            font-size: 12px;
+            color: var(--brand-placeholder-text);
+            margin-top: 5px;
+        }
+
+
+        textarea:focus, select:focus, input[type="text"]:focus { /* Added input[type="text"] */
+            outline: none;
+            border-color: var(--brand-primary);
+            box-shadow: 0 0 0 2px var(--brand-secondary);
+        }
+
+        /* Generate Button Styling */
+        .generate-button {
+            background: var(--brand-primary);
+            color: var(--brand-text-light);
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 16px;
+            transition: opacity 0.2s ease;
+            text-align: center;
+            margin-top: 10px; /* Add some space above button */
+        }
+        .generate-button:hover {
+            opacity: 0.9;
+        }
+        .generate-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Output Area Styling */
+        .output-section {
+            margin-bottom: 25px; /* Space between platform sections */
+        }
+        .output-section label {
+            font-weight: 600;
+            color: var(--brand-text-dark);
+            margin-bottom: 8px;
+        }
+        .output-textarea {
+            background-color: var(--brand-background); /* Light grey background */
+            border: 1px solid var(--brand-border);
+            border-radius: 8px;
+            padding: 15px;
+            min-height: 100px; /* Adjust height as needed */
+            white-space: pre-wrap; /* Preserve whitespace and wrap text */
+            word-wrap: break-word; /* Break long words */
+            font-size: 14px;
+            color: var(--brand-text-dark);
+            overflow-y: auto; /* Add scroll if content overflows */
+            resize: vertical; /* Allow vertical resize */
+            width: 100%; /* Ensure it takes full width */
+            box-sizing: border-box;
+            margin-bottom: 8px; /* Space below textarea */
+            font-family: 'Google Sans Text', sans-serif; /* Apply Google font */
+            line-height: 1.5; /* Adjust line height for readability */
+        }
+
+        .output-controls {
+            display: flex;
+            justify-content: flex-end; /* Align button and feedback to the right */
+            align-items: center;
+            gap: 10px;
+            height: 30px; /* Fixed height for alignment */
+        }
+
+        .copy-feedback {
+            font-size: 12px;
+            color: green;
+            height: 15px; /* Ensure space is reserved */
+        }
+        .copy-feedback.error { /* Style for error feedback */
+             color: red;
+        }
+
+
+        /* Copy Button Styling */
+        .copy-button {
+            background: var(--brand-button-black);
+            color: var(--brand-text-light);
+            border: none;
+            padding: 6px 12px; /* Slightly smaller padding */
+            border-radius: 6px; /* Slightly smaller radius */
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 12px; /* Smaller font */
+            transition: opacity 0.2s ease;
+        }
+        .copy-button:hover {
+            opacity: 0.85;
+        }
+        .copy-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Section Heading - UPDATED FONT */
+        h2 {
+            font-family: 'Anton', sans-serif; /* Apply Anton font */
+            font-size: 22px; /* Slightly larger size for display font */
+            font-weight: 400; /* Anton is inherently bold, use normal weight */
+            text-transform: uppercase; /* Match example style */
+            letter-spacing: 0.5px; /* Optional: adjust letter spacing */
+            margin-top: 0;
+            margin-bottom: 10px; /* Increased bottom margin */
+            color: var(--brand-primary); /* Keep the blue color */
+        }
+
+        /* Loading Indicator Styling */
+        .loading-indicator {
+             display: none; /* **FIXED: Hide by default** */
+             text-align: center;
+             padding: 40px 20px; /* Increased padding */
+             font-style: italic;
+             color: var(--brand-placeholder-text);
+             /* Removed flex properties from default state */
+         }
+         /* Show indicator and hide sections when .loading class is present */
+         .output-column.loading .loading-indicator {
+             display: flex; /* Use flex to center spinner and text */
+             flex-direction: column; /* Stack vertically */
+             align-items: center;
+             justify-content: center;
+             gap: 15px; /* Space between spinner and text */
+         }
+         .output-column.loading .output-section {
+             display: none; /* Hide output sections when loading */
+         }
+
+         /* Spinner Animation */
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1); /* Light grey border */
+            border-left-color: var(--brand-primary); /* Blue spinner color */
+            border-radius: 50%;
+            width: 30px; /* Size of spinner */
+            height: 30px;
+            animation: spin 1s linear infinite; /* Animation properties */
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .generator-container {
+                flex-direction: column; /* Stack columns on smaller screens */
+                padding: 20px;
+            }
+            .input-column, .output-column {
+                min-width: unset; /* Remove min-width */
+            }
+             h2 {
+                font-size: 20px; /* Slightly smaller heading on mobile */
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="generator-container">
+        <div class="input-column">
+            <h2>Create New Social Posts</h2>
+            <div>
+                <label for="seo-content">Content to Repurpose:</label>
+                <textarea id="seo-content" placeholder="Paste the content you want repurposed here..."></textarea>
+            </div>
+             <div>
+                 <label for="seo-keywords">Optional SEO Keywords:</label>
+                 <input type="text" id="seo-keywords" placeholder="Enter relevant keywords (comma-separated)">
+                 <p class="input-note">You may enter N/A if there aren't any.</p>
+            </div>
+            <div>
+                <label for="tone-select">Select Tone of Voice:</label>
+                <select id="tone-select">
+                    <option value="Neutral/Informative">Neutral / Informative</option>
+                    <option value="Professional">Professional</option>
+                    <option value="Casual/Conversational">Casual / Conversational</option>
+                    <option value="Enthusiastic/Excited">Enthusiastic / Excited</option>
+                    <option value="Humorous/Witty">Humorous / Witty</option>
+                </select>
+            </div>
+            <button id="generate-button" class="generate-button">Generate Posts</button>
+        </div>
+
+        <div class="output-column" id="output-column">
+            <h2>Generated Posts</h2>
+
+            <div class="loading-indicator" id="loading-indicator">
+                <div class="spinner"></div> <span>Generating...</span>   </div>
+
+            <div class="output-section" id="linkedin-section">
+                <label for="linkedin-output">LinkedIn Post:</label>
+                <textarea id="linkedin-output" class="output-textarea" readonly placeholder="LinkedIn post will appear here..."></textarea>
+                <div class="output-controls">
+                    <span class="copy-feedback" id="linkedin-copy-feedback"></span>
+                    <button class="copy-button" id="copy-linkedin" data-target="linkedin-output" disabled>Copy</button>
+                </div>
+            </div>
+
+            <div class="output-section" id="instagram-section">
+                <label for="instagram-output">Instagram Post:</label>
+                <textarea id="instagram-output" class="output-textarea" readonly placeholder="Instagram post will appear here..."></textarea>
+                 <div class="output-controls">
+                    <span class="copy-feedback" id="instagram-copy-feedback"></span>
+                    <button class="copy-button" id="copy-instagram" data-target="instagram-output" disabled>Copy</button>
+                </div>
+            </div>
+
+            <div class="output-section" id="facebook-section">
+                <label for="facebook-output">Facebook Post:</label>
+                <textarea id="facebook-output" class="output-textarea" readonly placeholder="Facebook post will appear here..."></textarea>
+                 <div class="output-controls">
+                    <span class="copy-feedback" id="facebook-copy-feedback"></span>
+                    <button class="copy-button" id="copy-facebook" data-target="facebook-output" disabled>Copy</button>
+                </div>
+            </div>
+
+             <div id="error-area" style="color: red; font-size: 14px; margin-top: 15px;"></div>
+
+        </div>
+    </div>
+
+    <script>
+        // Get references to DOM elements
+        const seoContentInput = document.getElementById('seo-content');
+        const seoKeywordsInput = document.getElementById('seo-keywords'); // NEW: Keywords input
+        const toneSelect = document.getElementById('tone-select');
+        const generateButton = document.getElementById('generate-button');
+        const outputColumn = document.getElementById('output-column');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const errorArea = document.getElementById('error-area');
+
+        // Output elements map
+        const outputElements = {
+            linkedin: {
+                textarea: document.getElementById('linkedin-output'),
+                copyButton: document.getElementById('copy-linkedin'),
+                feedback: document.getElementById('linkedin-copy-feedback'),
+                section: document.getElementById('linkedin-section')
+            },
+            instagram: {
+                textarea: document.getElementById('instagram-output'),
+                copyButton: document.getElementById('copy-instagram'),
+                feedback: document.getElementById('instagram-copy-feedback'),
+                section: document.getElementById('instagram-section')
+            },
+            facebook: {
+                textarea: document.getElementById('facebook-output'),
+                copyButton: document.getElementById('copy-facebook'),
+                feedback: document.getElementById('facebook-copy-feedback'),
+                section: document.getElementById('facebook-section')
+            }
+        };
+
+        // Webhook configuration - UPDATED to production URL
+        const webhookUrl = 'https://aikerrijames.app.n8n.cloud/webhook/8b9204f0-a869-4abe-9681-3a68a0cc9b4d';
+
+        /**
+         * Attempts to parse plain text response into separate posts.
+         * @param {string} text - The raw text response from the webhook.
+         * @returns {object} An object with keys 'linkedin', 'instagram', 'facebook' and their extracted content.
+         */
+        function parsePlainTextResponse(text) {
+            const posts = { linkedin: '', instagram: '', facebook: '' };
+            const patterns = {
+                linkedin: /^\s*(?:[1-9]\.?\)?\s*)?LinkedIn\s*(?:Post)?[:\-–—]?\s*/im,
+                instagram: /^\s*(?:[1-9]\.?\)?\s*)?Instagram\s*(?:Post)?[:\-–—]?\s*/im,
+                facebook: /^\s*(?:[1-9]\.?\)?\s*)?Facebook\s*(?:Post)?[:\-–—]?\s*/im
+            };
+            const indices = {};
+            let foundMarkers = 0;
+            for (const key in patterns) {
+                const match = text.match(patterns[key]);
+                if (match) {
+                    indices[key] = { index: match.index, length: match[0].length }; // Store index and length
+                    foundMarkers++;
+                } else {
+                    indices[key] = null; // Marker not found
+                }
+            }
+
+            if (foundMarkers === 0) {
+                console.warn("Could not find standard markers (LinkedIn Post:, Instagram Post:, etc.) in plain text response.");
+                return posts;
+            }
+
+            const sortedKeys = Object.keys(indices)
+                                     .filter(key => indices[key] !== null)
+                                     .sort((a, b) => indices[a].index - indices[b].index);
+
+            for (let i = 0; i < sortedKeys.length; i++) {
+                const currentKey = sortedKeys[i];
+                const startIndex = indices[currentKey].index + indices[currentKey].length;
+                const nextKey = sortedKeys[i + 1];
+                const nextMatch = nextKey ? text.substring(startIndex).match(patterns[nextKey]) : null;
+                const endIndex = nextMatch ? startIndex + nextMatch.index : text.length;
+
+                let content = text.substring(startIndex, endIndex).trim();
+                content = content.replace(/^["']|["']$/g, ''); // Remove surrounding quotes
+                posts[currentKey] = content;
+            }
+
+            return posts;
+        }
+
+
+        /**
+         * Handles the generation process when the button is clicked.
+         */
+        async function handleGenerateClick() {
+            const seoContent = seoContentInput.value.trim();
+            // NEW: Get keywords, default to 'N/A' if empty
+            let seoKeywords = seoKeywordsInput.value.trim();
+            if (!seoKeywords) {
+                seoKeywords = 'N/A';
+            }
+            const selectedTone = toneSelect.value;
+
+            if (!seoContent) {
+                alert('Please paste the content to repurpose.');
+                seoContentInput.focus();
+                return;
+            }
+
+            generateButton.disabled = true;
+            errorArea.textContent = '';
+            outputColumn.classList.add('loading');
+            for (const key in outputElements) {
+                outputElements[key].textarea.value = '';
+                outputElements[key].copyButton.disabled = true;
+                outputElements[key].feedback.textContent = '';
+            }
+
+            let response;
+
+            try {
+                // UPDATED: Include seo_keywords in the payload
+                const payload = {
+                    seo_content: seoContent,
+                    seo_keywords: seoKeywords,
+                    tone_of_voice: selectedTone
+                };
+
+                response = await fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const responseText = await response.text(); // Read body ONCE
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}. Response: ${responseText}`);
+                }
+
+                let responseData;
+                let posts = {};
+                let hasContent = false;
+
+                try {
+                    responseData = JSON.parse(responseText);
+                    posts = {
+                        linkedin: responseData.linkedin_post || responseData.linkedin || "",
+                        instagram: responseData.instagram_post || responseData.instagram || "",
+                        facebook: responseData.facebook_post || responseData.facebook || ""
+                    };
+                    console.log("Parsed JSON response:", posts);
+
+                } catch (jsonError) {
+                    console.warn("Response was not valid JSON. Attempting to parse plain text.", jsonError);
+                    posts = parsePlainTextResponse(responseText);
+                    if (!Object.values(posts).some(p => p !== '')) {
+                        // If plain text parsing also fails, put raw text in first box
+                        posts.linkedin = responseText; // Fallback
+                        errorArea.textContent = "Received non-JSON response that could not be automatically split. Displaying raw text in LinkedIn field.";
+                    }
+                }
+
+                for (const key in posts) {
+                    if (outputElements[key]) {
+                        outputElements[key].textarea.value = posts[key];
+                        outputElements[key].copyButton.disabled = !posts[key];
+                        if (posts[key]) hasContent = true;
+                    }
+                }
+
+                if (!hasContent && !errorArea.textContent) {
+                   errorArea.textContent = "Webhook response processed, but no post content found for LinkedIn, Instagram, or Facebook.";
+                }
+
+            } catch (error) {
+                console.error('Error generating social posts:', error);
+                errorArea.textContent = `Error: ${error.message}`;
+                for (const key in outputElements) {
+                    if (outputElements[key]) {
+                       outputElements[key].copyButton.disabled = true;
+                    }
+                }
+            } finally {
+                generateButton.disabled = false;
+                outputColumn.classList.remove('loading');
+            }
+        }
+
+        /**
+         * Copies text using a fallback method (document.execCommand) if the Clipboard API fails.
+         * @param {string} textToCopy - The text to be copied.
+         * @param {HTMLElement} feedbackElement - The span element to show feedback.
+         * @returns {boolean} - True if copy was successful, false otherwise.
+         */
+        function copyUsingExecCommand(textToCopy, feedbackElement) {
+            console.log("Attempting copy using document.execCommand fallback...");
+            const textArea = document.createElement("textarea");
+            textArea.value = textToCopy;
+
+            // Make the textarea visually hidden but still part of the DOM
+            textArea.style.position = 'fixed';
+            textArea.style.top = '-9999px';
+            textArea.style.left = '-9999px';
+            textArea.style.width = '2em';
+            textArea.style.height = '2em';
+            textArea.style.padding = '0';
+            textArea.style.border = 'none';
+            textArea.style.outline = 'none';
+            textArea.style.boxShadow = 'none';
+            textArea.style.background = 'transparent';
+
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            let success = false;
+            try {
+                success = document.execCommand('copy');
+                if (success) {
+                    console.log("Fallback copy successful.");
+                    feedbackElement.textContent = 'Copied!';
+                } else {
+                    console.error("Fallback copy command failed.");
+                    feedbackElement.textContent = 'Fallback copy failed.';
+                    feedbackElement.classList.add('error');
+                }
+            } catch (err) {
+                console.error('Error during fallback copy:', err);
+                feedbackElement.textContent = 'Fallback copy error.';
+                feedbackElement.classList.add('error');
+                success = false;
+            }
+
+            document.body.removeChild(textArea);
+            return success;
+        }
+
+        /**
+         * Copies the content of a specific output textarea to the clipboard.
+         * Tries the modern Clipboard API first, then falls back to execCommand.
+         * @param {string} targetId - The ID of the textarea to copy from.
+         * @param {HTMLElement} feedbackElement - The span element to show feedback.
+         */
+        async function copyToClipboard(targetId, feedbackElement) {
+            const textarea = document.getElementById(targetId);
+            const textToCopy = textarea.value;
+
+            // Reset feedback style
+            feedbackElement.classList.remove('error');
+            feedbackElement.textContent = '';
+
+            if (!textToCopy) {
+                 feedbackElement.textContent = 'Nothing to copy!';
+                 setTimeout(() => { feedbackElement.textContent = ''; }, 2000);
+                 return;
+            }
+
+            let copySuccess = false;
+
+            // Try modern Clipboard API first
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                try {
+                    await navigator.clipboard.writeText(textToCopy);
+                    feedbackElement.textContent = 'Copied!';
+                    copySuccess = true;
+                    console.log("Copy successful using Clipboard API.");
+                } catch (err) {
+                    console.warn('Clipboard API failed:', err);
+                    // If it specifically fails due to permissions or context, try fallback
+                    if (err.name === 'NotAllowedError' || err.name === 'SecurityError') {
+                        copySuccess = copyUsingExecCommand(textToCopy, feedbackElement);
+                    } else {
+                        // For other errors, show generic failure
+                        feedbackElement.textContent = 'Copy failed!';
+                        feedbackElement.classList.add('error');
+                    }
+                }
+            } else {
+                // If modern API is not available at all, try fallback directly
+                console.warn('Clipboard API not available, trying fallback.');
+                copySuccess = copyUsingExecCommand(textToCopy, feedbackElement);
+            }
+
+            // Clear feedback message after a delay
+            setTimeout(() => {
+                feedbackElement.textContent = '';
+                feedbackElement.classList.remove('error');
+             }, copySuccess ? 2000 : 3000); // Longer timeout for errors
+        }
+
+
+        // --- Event Listeners ---
+        generateButton.addEventListener('click', handleGenerateClick);
+
+        // Add event listeners for each copy button
+        for (const key in outputElements) {
+            const button = outputElements[key].copyButton;
+            const targetId = button.getAttribute('data-target');
+            const feedbackElement = outputElements[key].feedback;
+            button.addEventListener('click', () => copyToClipboard(targetId, feedbackElement));
+        }
+
+    </script>
+
+</body>
+</html>
